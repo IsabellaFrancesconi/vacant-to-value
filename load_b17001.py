@@ -14,6 +14,14 @@ db_path = 'acs_data.db'
 df = pd.read_csv(data_path)
 meta = pd.read_csv(metadata_path)
 
+# Remove header row appearing as data 
+if df.iloc[0]['GEO_ID'] == 'Geography':
+    df = df.iloc[1:]
+# Keep only tract-level rows 
+df = df[df['GEO_ID'].str.startswith('1400000US')]
+# Clean up columns
+df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
 # Extract relevant estimate columns only (ending in 'E') that are not GEO_ID or NAME
 estimate_cols = [col for col in df.columns if col.endswith('E') and col not in ['GEO_ID', 'NAME']]
 df_long = df.melt(id_vars=['GEO_ID'], value_vars=estimate_cols,
@@ -27,11 +35,12 @@ df_merged = pd.merge(df_long, meta, on='column_code')
 def parse_label(label):
     try:
         parts = label.split('!!')
-        sex = parts[2] if len(parts) > 2 else None
-        age_group = parts[3] if len(parts) > 3 else None
+        sex = parts[3].strip(':') if len(parts) > 3 else None
+        age_group = parts[4].strip(':') if len(parts) > 4 else None
         return pd.Series([sex, age_group])
     except:
         return pd.Series([None, None])
+
 
 df_merged[['sex', 'age_group']] = df_merged['Label'].apply(parse_label)
 df_merged['tract_id'] = df_merged['GEO_ID'].str[-11:]  # Last 11 chars = tract FIPS code
