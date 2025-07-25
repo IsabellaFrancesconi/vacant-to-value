@@ -12,6 +12,13 @@ db_path = 'acs_data.db'
 # Load CSV data
 df = pd.read_csv(data_path)
 
+# Drop first row if it's a header accidentally read as data
+if df.iloc[0]['GEO_ID'] == 'Geography':
+    df = df.iloc[1:]
+
+# Keep only census tract-level rows (starts with 1400000US)
+df = df[df['GEO_ID'].str.startswith('1400000US')]
+
 # Strip and clean column names
 df.columns = [col.strip() for col in df.columns]
 
@@ -35,6 +42,7 @@ conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 # Create OccupancyStatus table
+cursor.execute("DROP TABLE IF EXISTS OccupancyStatus;")
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS OccupancyStatus (
         tract_id TEXT PRIMARY KEY,
@@ -46,7 +54,7 @@ cursor.execute("""
 """)
 
 # Insert data
-occupancy_df.to_sql("OccupancyStatus", conn, if_exists="append", index=False)
+occupancy_df.to_sql("OccupancyStatus", conn, if_exists="replace", index=False)
 
 conn.commit()
 conn.close()

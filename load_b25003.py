@@ -12,6 +12,13 @@ db_path = 'acs_data.db'
 # Load data
 df = pd.read_csv(data_path, dtype=str)
 
+# Drop first row if it's a header accidentally read as data
+if df.iloc[0]['GEO_ID'] == 'Geography':
+    df = df.iloc[1:]
+
+# Keep only census tract-level rows (starts with 1400000US)
+df = df[df['GEO_ID'].str.startswith('1400000US')]
+
 # Clean up column names
 df.columns = [col.strip() for col in df.columns]
 

@@ -14,6 +14,13 @@ db_path = 'acs_data.db'
 df = pd.read_csv(data_path)
 meta = pd.read_csv(meta_path)
 
+# Drop first row if it's a header accidentally read as data
+if df.iloc[0]['GEO_ID'] == 'Geography':
+    df = df.iloc[1:]
+
+# Keep only census tract-level rows (starts with 1400000US)
+df = df[df['GEO_ID'].str.startswith('1400000US')]
+
 # Extract estimate columns only
 estimate_cols = [col for col in df.columns if col.endswith('E') and col not in ['GEO_ID', 'NAME']]
 df_long = df.melt(id_vars=['GEO_ID'], value_vars=estimate_cols,
