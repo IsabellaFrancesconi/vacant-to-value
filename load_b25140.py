@@ -11,7 +11,8 @@ meta_path = os.path.join(folder, 'ACSDT5Y2023.B25140-Column-Metadata.csv')
 db_path = 'acs_data.db'
 
 # Load data
-df = pd.read_csv(data_path)
+df = pd.read_csv(data_path, skiprows=[1])
+df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
 meta = pd.read_csv(meta_path)
 
 # Get relevant estimate columns
