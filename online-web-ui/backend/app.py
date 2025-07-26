@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
 import os
+from flask import send_from_directory
 
 app = Flask(__name__)
 CORS(app)
@@ -21,9 +22,13 @@ def run_query(query):
         print("[ERROR] run_query failed:", e)
         raise
 
-@app.route('/')
-def index():
-    return "<h1>Flask API is running</h1>"
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve(path):
+    if path != "" and os.path.exists(os.path.join("../client/build", path)):
+        return send_from_directory("../client/build", path)
+    else:
+        return send_from_directory("../client/build", "index.html")
 
 @app.route('/api/<query_type>')
 def query_handler(query_type):

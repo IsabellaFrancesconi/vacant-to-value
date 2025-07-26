@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: acs-data-viewer
+    env: python
+    buildCommand: "cd client && npm install && npm run build"
+    startCommand: "gunicorn backend.app:app"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+    buildFilter:
+      paths:
+        - backend/
+        - client/
+        - requirements.txt
+    autoDeploy: true
