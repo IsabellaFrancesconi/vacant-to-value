@@ -4,7 +4,7 @@ import sqlite3
 import os
 from flask import send_from_directory
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="../client/build", static_url_path="")
 CORS(app)
 
 DB_FILE = os.path.abspath("acs_data.db")
