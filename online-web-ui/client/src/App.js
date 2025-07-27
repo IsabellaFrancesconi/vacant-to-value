@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import MapView from "./MapView";
 
 const options = [
   { label: "Total Population", endpoint: "population" },
@@ -12,19 +13,33 @@ const options = [
   { label: "Bedroom Info", endpoint: "bedroom" },
 ];
 
+const descriptions = {
+  population: "Shows the total population in each census tract.",
+  poverty: "Breaks down poverty status by sex and age group.",
+  occupancy: "Displays the number of housing units: total, occupied, and vacant.",
+  rent: "Shows the median gross rent per tract.",
+  "rent-burden": "Displays the percentage of households spending over 30% and 50% of income on rent.",
+  tenure: "Breaks down units by owner-occupied vs. renter-occupied.",
+  vacancy: "Displays vacant units categorized by vacancy type.",
+  structure: "Shows housing unit counts by structure type and occupancy.",
+  bedroom: "Breaks down bedroom counts by type and occupancy status."
+};
+
 function App() {
   const [data, setData] = useState([]);
   const [selected, setSelected] = useState("population");
   const [limit, setLimit] = useState(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [viewMode, setViewMode] = useState("table"); 
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`/api/${selected}?limit=${limit}`);
+        const effectiveLimit = viewMode === "map" ? 1000 : limit;
+        const res = await fetch(`/api/${selected}?limit=${effectiveLimit}`);
         const json = await res.json();
         if (Array.isArray(json)) {
           setData(json);
@@ -43,7 +58,7 @@ function App() {
     };
 
     fetchData();
-  }, [selected, limit]);
+  }, [selected, limit, viewMode]);
 
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
@@ -61,16 +76,40 @@ function App() {
           </select>
         </label>
 
-        <label style={{ marginLeft: "1rem" }}>
-          Rows:&nbsp;
-          <input
-            type="number"
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value))}
-            min="1"
-            max="100"
-          />
-        </label>
+        {selected && (
+          <div style={{ marginTop: "1rem", fontStyle: "italic", color: "#444" }}>
+            {descriptions[selected]}
+          </div>
+        )}
+
+        {viewMode === "table" && (
+          <label style={{ marginLeft: "1rem" }}>
+            Rows:&nbsp;
+            <input
+              type="number"
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+              min="1"
+              max="1000"
+            />
+          </label>
+        )}
+
+        <div style={{ marginTop: "1rem" }}>
+          <button
+            onClick={() => setViewMode("table")}
+            disabled={viewMode === "table"}
+            style={{ marginRight: "1rem" }}
+          >
+            Table View
+          </button>
+          <button
+            onClick={() => setViewMode("map")}
+            disabled={viewMode === "map"}
+          >
+            Map View
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -79,7 +118,7 @@ function App() {
         <p style={{ color: "red" }}>{error}</p>
       ) : data.length === 0 ? (
         <p>No data to display.</p>
-      ) : (
+      ) : viewMode === "table" ? (
         <table style={{ borderCollapse: "collapse", width: "100%" }}>
           <thead>
             <tr>
@@ -102,6 +141,8 @@ function App() {
             ))}
           </tbody>
         </table>
+      ) : (
+        <MapView data={data} valueKey={selected} />
       )}
     </div>
   );
