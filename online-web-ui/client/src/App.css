@@ -94,7 +94,6 @@ html, body {
   color: #aaf;
 }
 
-/* General reset */
 select, button, input[type="number"] {
   font-family: inherit;
   font-size: 1rem;
@@ -107,13 +106,11 @@ select, button, input[type="number"] {
   outline: none;
 }
 
-/* Focus styles */
 select:focus, button:focus, input[type="number"]:focus {
   border-color: #aaf;
   box-shadow: 0 0 5px #aaf;
 }
 
-/* Buttons */
 button {
   background-color: #222;
   color: #fff;
@@ -130,30 +127,25 @@ button:disabled {
   cursor: default;
 }
 
-/* Highlighted (active) buttons */
 button:disabled {
   background-color: #aaf;
   color: #000;
 }
 
-/* Inputs */
 input[type="number"] {
   width: 80px;
 }
 
-/* Label for selects and inputs */
 label {
   font-size: 0.95rem;
   color: #ccc;
 }
 
-/* Dropdown options */
 select option {
   background-color: #111;
   color: #fff;
 }
 
-/* Ensure no accidental white backgrounds */
 body, html {
   background-color: black !important;
   color: white;
@@ -228,9 +220,6 @@ body, html {
   align-items: center;
 }
 
-
-
-/* Buttons in bottom-left corner of the map */
 .map-buttons-container {
   position: absolute;
   bottom: 10px;
@@ -241,7 +230,6 @@ body, html {
   z-index: 1000;
 }
 
-/* Shared button styles */
 .map-button {
   padding: 6px 10px;
   border-radius: 5px;
@@ -250,8 +238,6 @@ body, html {
   font-size: 14px;
 }
 
-
-/* Color scale in top-right */
 .color-scale-box {
   position: absolute;
   top: 10px;
@@ -361,9 +347,8 @@ body, html {
   font-size: 13px;
 }
 
-/* Buttons: Purple default, white hover */
 button {
-  background-color: #aaf;        /* Light purple */
+  background-color: #aaf;        
   color: black;
   cursor: pointer;
   border-radius: 6px;
@@ -376,7 +361,7 @@ button {
 
 button:hover:not(:disabled) {
   background-color: white;
-  color: #2d2d2d; /* Darker purple on hover */
+  color: #2d2d2d; 
 }
 
 button:disabled {
