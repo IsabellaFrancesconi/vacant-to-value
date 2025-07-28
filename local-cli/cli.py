@@ -3,7 +3,6 @@ from tabulate import tabulate
 
 DB_FILE = "acs_data.db"
 LIMIT = 5
-FILTER = "WHERE tract_id IS NOT NULL AND tract_id NOT IN ('Geography', 'Total', '') AND tract_id GLOB '39035*'"
 TABLES = {
     "Tract": ["tract_id", "population"],
     "PovertyStatus": ["tract_id", "sex", "age_group", "count_below_pov_line"],
@@ -22,7 +21,7 @@ TABLES = {
 def show_total_population():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute(f"SELECT tract_id, population FROM Tract {FILTER} LIMIT {LIMIT}")
+    cur.execute(f"SELECT tract_id, population FROM Tract WHERE population IS NOT NULL ORDER BY population DESC LIMIT {LIMIT}")
     rows = cur.fetchall()
     conn.close()
     print(tabulate(rows, headers=["Tract ID", "Population"], tablefmt="grid"))
@@ -33,7 +32,7 @@ def show_poverty_status():
     cur.execute(f"""
         SELECT tract_id, sex, age_group, count_below_pov_line
         FROM PovertyStatus
-        {FILTER}
+        
         LIMIT {LIMIT}
     """)
     rows = cur.fetchall()
@@ -46,7 +45,7 @@ def show_occupancy_status():
     cur.execute(f"""
         SELECT tract_id, total_units, occupied_units, vacant_units
         FROM OccupancyStatus
-        {FILTER}
+        
         LIMIT {LIMIT}
     """)
     rows = cur.fetchall()
@@ -59,7 +58,7 @@ def show_tenure():
     cur.execute(f"""
         SELECT tract_id, owned_units, rented_units
         FROM Tenure
-        {FILTER}
+        
         LIMIT {LIMIT}
     """)
     rows = cur.fetchall()
@@ -72,7 +71,7 @@ def show_vacancy_info():
     cur.execute(f"""
         SELECT tract_id, vacancy_type, count
         FROM VacancyInfo
-        {FILTER}
+        
         LIMIT {LIMIT}
     """)
     rows = cur.fetchall()
@@ -82,7 +81,7 @@ def show_vacancy_info():
 def show_median_rent():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
-    cur.execute(f"SELECT tract_id, median_gross_rent FROM RentCost {FILTER} LIMIT {LIMIT}")
+    cur.execute(f"SELECT tract_id, median_gross_rent FROM RentCost  LIMIT {LIMIT}")
     rows = cur.fetchall()
     conn.close()
     print(tabulate(rows, headers=["Tract ID", "Median Gross Rent"], tablefmt="grid"))
@@ -93,7 +92,7 @@ def show_structure_info():
     cur.execute(f"""
         SELECT tract_id, structure_type, occupancy_status, structure_count
         FROM StructureInfo
-        {FILTER}
+        
         LIMIT {LIMIT}
     """)
     rows = cur.fetchall()
@@ -106,12 +105,169 @@ def show_bedroom_info():
     cur.execute(f"""
         SELECT tract_id, bedroom_type, occupancy_status, bedroom_count
         FROM BedroomInfo
-        {FILTER}
+        
         LIMIT {LIMIT}
     """)
     rows = cur.fetchall()
     conn.close()
     print(tabulate(rows, headers=["Tract ID", "Bedroom Type", "Occupancy", "Count"], tablefmt="grid"))
+
+def show_high_burdened_tracts():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT 
+            r.tract_id,
+            t.population,
+            r.pct_30_plus + r.pct_50_plus AS total_burdened,
+            ROUND((r.pct_30_plus + r.pct_50_plus) * 100.0 / t.population, 2) AS burden_rate_percent
+        FROM RentBurden r
+        JOIN Tract t ON r.tract_id = t.tract_id
+        WHERE r.tract_id IS NOT NULL
+          AND r.tract_id NOT IN ('Geography', 'Total', '')
+          AND r.tract_id GLOB '39035*'
+        ORDER BY burden_rate_percent DESC
+        LIMIT {LIMIT}
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    print(tabulate(rows, headers=["Tract ID", "Population", "Total Burdened", "Burden Rate (%)"], tablefmt="grid"))
+
+def show_county_burden_rate():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT 
+            (SELECT SUM(pct_30_plus + pct_50_plus) FROM RentBurden) AS total_burdened_households,
+            (SELECT SUM(occupied_units) FROM OccupancyStatus) AS total_occupied_households,
+            ROUND(
+                (SELECT SUM(pct_30_plus + pct_50_plus) FROM RentBurden) * 100.0 / 
+                (SELECT SUM(occupied_units) FROM OccupancyStatus), 2
+            ) AS burden_rate_percent
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    print(tabulate(rows, headers=["Total Burdened", "Total Occupied", "Burden Rate (%)"], tablefmt="grid"))
+
+def show_vacancy_reasons():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT 
+            vacancy_type,
+            SUM(count) AS total_units
+        FROM VacancyInfo
+        GROUP BY vacancy_type
+        ORDER BY total_units DESC
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    print(tabulate(rows, headers=["Vacancy Type", "Total Units"], tablefmt="grid"))
+
+def show_high_rent_tracts():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT 
+            r.tract_id,
+            r.median_gross_rent,
+            t.rented_units
+        FROM RentCost r
+        JOIN Tenure t ON r.tract_id = t.tract_id
+        WHERE r.tract_id IS NOT NULL
+          AND r.tract_id NOT IN ('Geography', 'Total', '')
+          AND r.tract_id GLOB '39035*'
+          AND r.median_gross_rent > 2000
+        ORDER BY t.rented_units DESC
+        LIMIT {LIMIT}
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    print(tabulate(rows, headers=["Tract ID", "Median Gross Rent", "Rented Units"], tablefmt="grid"))
+
+def show_structure_types():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT 
+            structure_type,
+            SUM(structure_count) AS total_units
+        FROM StructureInfo
+        GROUP BY structure_type
+        ORDER BY total_units DESC
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    print(tabulate(rows, headers=["Structure Type", "Total Units"], tablefmt="grid"))
+
+def show_high_vacancy_tracts():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT 
+            o.tract_id,
+            o.vacant_units,
+            o.total_units,
+            ROUND(o.vacant_units * 100.0 / o.total_units, 2) AS vacancy_rate_percent
+        FROM OccupancyStatus o
+        WHERE o.tract_id IS NOT NULL
+          AND o.tract_id NOT IN ('Geography', 'Total', '')
+          AND o.tract_id GLOB '39035*'
+          AND o.vacant_units * 100.0 / o.total_units > 25
+        ORDER BY vacancy_rate_percent DESC
+        LIMIT {LIMIT}
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    print(tabulate(rows, headers=["Tract ID", "Vacant Units", "Total Units", "Vacancy Rate (%)"], tablefmt="grid"))
+
+def show_poverty_vs_vacancy():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT 
+            o.tract_id,
+            o.vacant_units,
+            SUM(p.count_below_pov_line) AS total_poverty_count,
+            t.rented_units,
+            t.owned_units,
+            ROUND(t.rented_units * 100.0 / (t.rented_units + t.owned_units), 2) AS pct_renter_occupied
+        FROM OccupancyStatus o
+        JOIN PovertyStatus p ON o.tract_id = p.tract_id
+        JOIN Tenure t ON o.tract_id = t.tract_id
+        WHERE o.tract_id IS NOT NULL
+          AND o.tract_id NOT IN ('Geography', 'Total', '')
+          AND o.tract_id GLOB '39035*'
+        GROUP BY o.tract_id, o.vacant_units, t.rented_units, t.owned_units
+        ORDER BY o.vacant_units DESC
+        LIMIT {LIMIT}
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    print(tabulate(rows, headers=["Tract ID", "Vacant Units", "Poverty Count", "Rented Units", "Owned Units", "% Renter"], tablefmt="grid"))
+
+def show_poverty_rates():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(f"""
+        SELECT 
+            p.tract_id,
+            SUM(p.count_below_pov_line) AS total_poverty_count,
+            t.population,
+            ROUND(SUM(p.count_below_pov_line) * 100.0 / t.population, 2) AS poverty_rate_percent
+        FROM PovertyStatus p
+        JOIN Tract t ON p.tract_id = t.tract_id
+        WHERE p.tract_id IS NOT NULL
+          AND p.tract_id NOT IN ('Geography', 'Total', '')
+          AND p.tract_id GLOB '39035*'
+        GROUP BY p.tract_id, t.population
+        ORDER BY poverty_rate_percent DESC
+        LIMIT {LIMIT}
+    """)
+    rows = cur.fetchall()
+    conn.close()
+    print(tabulate(rows, headers=["Tract ID", "Poverty Count", "Population", "Poverty Rate (%)"], tablefmt="grid"))
+
 
 def modular_query():
     print("\nAvailable Tables:")
@@ -143,7 +299,7 @@ def modular_query():
     where_clause = input("Optional WHERE clause (e.g., sex='Male' AND age_group='18-24'): ").strip()
     limit_clause = f"LIMIT {LIMIT}"
 
-    sql = f"SELECT {', '.join(selected_cols)} FROM {table_name} {FILTER}"
+    sql = f"SELECT {', '.join(selected_cols)} FROM {table_name} "
     if where_clause:
         sql += f" AND {where_clause}"
     sql += f" {limit_clause}"
@@ -165,7 +321,7 @@ def show_rent_burden():
     cur.execute(f"""
         SELECT tract_id, tenure_type, pct_30_plus, pct_50_plus
         FROM RentBurden
-        {FILTER}
+        
         LIMIT {LIMIT}
     """)
     rows = cur.fetchall()
@@ -184,7 +340,15 @@ def sample_query():
         print("7. View vacancy reasons")
         print("8. View structure types")
         print("9. View bedroom counts")
-        print("0. Exit")
+        print("10. View high rent-burdened tracts")
+        print("11. View countywide rent burden rate")
+        print("12. View vacant units by reason")
+        print("13. View high-rent tracts with many renters")
+        print("14. View structure type counts")
+        print("15. View tracts with >25% vacancy rate")
+        print("16. View tracts with highest poverty and vacancy")
+        print("17. View poverty rate per tract")
+        print("0. Back to main menu")
 
         choice = input("Select an option: ").strip()
         if choice == "1":
@@ -205,10 +369,28 @@ def sample_query():
             show_structure_info()
         elif choice == "9":
             show_bedroom_info()
+        elif choice == "10":
+            show_high_burdened_tracts()
+        elif choice == "11":
+            show_county_burden_rate()
+        elif choice == "12":
+            show_vacancy_reasons()
+        elif choice == "13":
+            show_high_rent_tracts()
+        elif choice == "14":
+            show_structure_types()
+        elif choice == "15":
+            show_high_vacancy_tracts()
+        elif choice == "16":
+            show_poverty_vs_vacancy()
+        elif choice == "17":
+            show_poverty_rates()
+
         elif choice == "0":
             break
         else:
             print("Invalid selection. Try again.")
+
 
 def set_limit():
     global LIMIT
@@ -243,10 +425,7 @@ def main():
             modular_query()
         elif choice == "0":
             print("Exiting the CLI.")
-            break
-
-
-        
+            break        
 
 if __name__ == "__main__":
     main()
