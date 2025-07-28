@@ -1,6 +1,7 @@
-
 .App {
-  text-align: center,
+  text-align: center;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .App-logo {
@@ -37,3 +38,11 @@
     transform: rotate(360deg);
   }
 }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
