@@ -67,37 +67,16 @@ function SummaryTile({ selected }) {
   if (summaryData.length === 0) return null;
 
   return (
-    <div style={{
-      position: "absolute",
-      top: "2rem",
-      right: "2rem",
-      background: "#f8f8f8",
-      border: "1px solid #ccc",
-      padding: "1rem",
-      borderRadius: "8px",
-      maxWidth: "300px",
-      boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-      fontSize: "0.9rem"
-    }}>
+    <div className="summary-tile">
       <strong>{summaryTitle}</strong>
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr auto",
-        rowGap: "0.4rem",
-        columnGap: "1rem",
-        marginTop: "0.5rem"
-        }}>
+      <div className="summary-grid">
         {summaryData.map((item, idx) => (
-            <React.Fragment key={idx}>
-            <div>
-                {item.label || item.vacancy_type || item.structure_type || "Unknown"}
-            </div>
-            <div style={{ textAlign: "right", fontWeight: 500 }}>
-                {item.value || item.total_units || "—"}
-            </div>
-            </React.Fragment>
+          <React.Fragment key={idx}>
+            <div>{item.label || item.vacancy_type || item.structure_type || "Unknown"}</div>
+            <div className="summary-value">{item.value || item.total_units || "—"}</div>
+          </React.Fragment>
         ))}
-        </div>
+      </div>
     </div>
   );
 }

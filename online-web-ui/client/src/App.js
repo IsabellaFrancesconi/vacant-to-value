@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import MapView from "./MapView";
 import TableView from "./TableView";
 import SummaryTile from "./SummaryTile";
-
+import StarField from "./StarField";
+import './App.css';
 
 const options = [
   { label: "Total Population", endpoint: "population" },
@@ -44,9 +45,11 @@ function App() {
   const [limit, setLimit] = useState(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [viewMode, setViewMode] = useState("map"); 
+  const [viewMode, setViewMode] = useState(null); // initially null
+  const hasSelectedView = viewMode !== null;
 
   useEffect(() => {
+    if (!hasSelectedView) return;
     const fetchData = async () => {
       setLoading(true);
       setError("");
@@ -71,77 +74,92 @@ function App() {
     };
 
     fetchData();
-  }, [selected, limit, viewMode]);
+  }, [selected, limit, viewMode, hasSelectedView]);
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-      <h1>Vacant to Value</h1>
-
-      <div style={{ marginBottom: "1rem" }}>
-        <label>
-          Choose a query:&nbsp;
-          <select onChange={(e) => setSelected(e.target.value)} value={selected}>
-            {options.map((opt) => (
-              <option key={opt.endpoint} value={opt.endpoint}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {selected && (
-          <div style={{ marginTop: "1rem", fontStyle: "italic", color: "#444" }}>
-            {descriptions[selected]}
-          </div>
-        )}
-
-        {viewMode === "table" && (
-          <label style={{ marginLeft: "1rem" }}>
-            Rows:&nbsp;
-            <input
-              type="number"
-              value={limit}
-              onChange={(e) => setLimit(Number(e.target.value))}
-              min="1"
-              max="1000"
-            />
-          </label>
-        )}
-
-        <div style={{ marginTop: "1rem" }}>
-          <button
-            onClick={() => setViewMode("map")}
-            disabled={viewMode === "map"}
-          >
-            Map View
-          </button>
-          <button
-            onClick={() => setViewMode("table")}
-            disabled={viewMode === "table"}
-            style={{ marginLeft: "1rem" }}
-          >
-            Table View
-          </button>
-        </div>
+    <div className="App">
+      <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
+        <StarField />
       </div>
 
-      <SummaryTile selected={selected} />
-
-      {loading ? (
-        <p>Loading...</p>
-      ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
-      ) : data.length === 0 ? (
-        <p>No data to display.</p>
-      ) : viewMode === "table" ? (
-        <TableView data={data} selected={selected} />
+      {!hasSelectedView ? (
+        <div className="landing-container">
+          <h1>Welcome to Vacant-to-Value!</h1>
+          <p>To proceed, please select whether you'd like to see a map view or a table view:</p>
+          <div className="landing-buttons">
+            <button onClick={() => setViewMode("map")}>Map View</button>
+            <button onClick={() => setViewMode("table")}>Table View</button>
+          </div>
+        </div>
       ) : (
-        <div style={{ height: "70vh", display: "flex", flexDirection: "column", marginTop:"5vh" }}>
-          <MapView data={data} valueKey={selected} />
-        </div>        
+        <div className="main-content">
+          <div className="top-buttons">
+            <button onClick={() => setViewMode("map")} disabled={viewMode === "map"}>
+              Map View
+            </button>
+            <button onClick={() => setViewMode("table")} disabled={viewMode === "table"}>
+              Table View
+            </button>
+          </div>
+
+          <h1>Vacant to Value</h1>
+
+          <div style={{ marginBottom: "1rem" }}>
+            <label>
+              Choose a query:&nbsp;
+              <select onChange={(e) => setSelected(e.target.value)} value={selected}>
+                {options.map((opt) => (
+                  <option key={opt.endpoint} value={opt.endpoint}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {selected && (
+              <div style={{ marginTop: "1rem", fontStyle: "italic", color: "#ccc" }}>
+                {descriptions[selected]}
+              </div>
+            )}
+
+            {viewMode === "table" && (
+              <label style={{ marginLeft: "1rem" }}>
+                Rows:&nbsp;
+                <input
+                  type="number"
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value))}
+                  min="1"
+                  max="1000"
+                />
+              </label>
+            )}
+          </div>
+          {hasSelectedView && (
+            <>
+              <SummaryTile selected={selected} />
+
+              {loading ? (
+                <p>Loading...</p>
+              ) : error ? (
+                <p style={{ color: "red" }}>{error}</p>
+              ) : data.length === 0 ? (
+                <p>No data to display.</p>
+              ) : viewMode === "table" ? (
+                <TableView data={data} selected={selected} />
+              ) : (
+                <div className="map-wrapper">
+                  {/* Delay render slightly after view mode switch */}
+                  {typeof window !== "undefined" && <MapView data={data} valueKey={selected} />}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
     </div>
   );
 }
+
 
 export default App;

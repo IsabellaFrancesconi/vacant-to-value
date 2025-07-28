@@ -1,4 +1,5 @@
 import React from "react";
+import "./App.css";
 
 function TableView({ data, selected }) {
   if (data.length === 0) return <p>No data to display.</p>;
@@ -10,28 +11,26 @@ function TableView({ data, selected }) {
     : keys;
 
   return (
-    <table style={{ borderCollapse: "collapse", width: "100%", marginTop: "3rem" }}>
-      <thead>
-        <tr>
-          {reorderedKeys.map((col) => (
-            <th key={col} style={{ border: "1px solid black", padding: "8px" }}>
-              {col}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((row, idx) => (
-          <tr key={idx}>
-            {reorderedKeys.map((col, j) => (
-              <td key={j} style={{ border: "1px solid black", padding: "8px" }}>
-                {row[col]}
-              </td>
-            ))}
-          </tr>
+    <div className="table-wrapper">
+      <div className="table-headers">
+        {reorderedKeys.map((col, idx) => (
+          <div key={idx} className="table-header-cell">{col}</div>
         ))}
-      </tbody>
-    </table>
+      </div>
+      <div className="table-body-scroll">
+        <table className="custom-table no-header-table">
+          <tbody>
+            {data.map((row, idx) => (
+              <tr key={idx}>
+                {reorderedKeys.map((col, j) => (
+                  <td key={j}>{row[col]}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

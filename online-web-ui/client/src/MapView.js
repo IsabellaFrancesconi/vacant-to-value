@@ -16,15 +16,12 @@ function MapView({ data, valueKey }) {
   const [geojson, setGeojson] = useState(null);
   const [hoverInfo, setHoverInfo] = useState(null);
   const [activeKey, setActiveKey] = useState(null);
-  const [sexFilter, setSexFilter] = useState("All");
-  const [ageGroupFilter, setAgeGroupFilter] = useState("All");
-  const [vacancyTypeFilter, setVacancyTypeFilter] = useState("All");
   const [structureTypeFilter, setStructureTypeFilter] = useState("All");
   const [bedroomTypeFilter, setBedroomTypeFilter] = useState("All");
   const [selectedOpacity] = useState(0.6);
   const [unselectedOpacity] = useState(0.1);
   const [show3D, setShow3D] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
   const mapStyleUrl = darkMode
     ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
     : "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
@@ -33,14 +30,22 @@ function MapView({ data, valueKey }) {
 
 
   useEffect(() => {
-    if (data.length > 0) {
-      const sample = data[0];
-      const numericKeys = Object.keys(sample).filter(
-        k => k !== "tract_id" && typeof sample[k] === "number"
-      );
-      setActiveKey(numericKeys[0]);
+  if (data.length > 0) {
+    const sample = data[0];
+    const numericKeys = Object.keys(sample).filter(
+      k => k !== "tract_id" && typeof sample[k] === "number"
+    );
+
+    // Override activeKey with valueKey if it's valid
+    if (valueKey && numericKeys.includes(valueKey)) {
+      setActiveKey(valueKey);
+    } else if (!numericKeys.includes(activeKey)) {
+      setActiveKey(numericKeys[0] || null);
     }
-  }, [data]);
+  }
+}, [data, activeKey, valueKey]);
+
+
 
   useEffect(() => {
     fetch("/ohio_tracts.json")
@@ -50,9 +55,6 @@ function MapView({ data, valueKey }) {
   }, []);
 
   const filteredData = data.filter(row => {
-    if (row.sex && sexFilter !== "All" && row.sex !== sexFilter) return false;
-    if (row.age_group && ageGroupFilter !== "All" && row.age_group !== ageGroupFilter) return false;
-    if (row.vacancy_type && vacancyTypeFilter !== "All" && row.vacancy_type !== vacancyTypeFilter) return false;
     if (row.structure_type && structureTypeFilter !== "All" && row.structure_type !== structureTypeFilter) return false;
     if (row.bedroom_type && bedroomTypeFilter !== "All" && row.bedroom_type !== bedroomTypeFilter) return false;
     return true;
@@ -128,14 +130,21 @@ function MapView({ data, valueKey }) {
         return ["poverty_rate_percent"];
       }
 
-      const occupancyOrder = ["total_units", "vacant_units", "occupied_units", "pct_vacant"];
-      if (occupancyOrder.some(k => keys.includes(k))) {
-        return occupancyOrder.filter(k => keys.includes(k));
-      }
+      const preferredOrder = [
+        "total_units",
+        "vacant_units",
+        "occupied_units",
+        "pct_vacant",
+        "structure_count",
+        "bedroom_count"
+      ];
 
-      return keys;
+      return preferredOrder.filter(k => keys.includes(k)).concat(
+        keys.filter(k => !preferredOrder.includes(k))
+      );
     })()
   : [];
+
 
 
   const colorScale = [];
@@ -164,21 +173,16 @@ function MapView({ data, valueKey }) {
 
   return (
     <div style={{ height: "calc(100vh - 200px)", position: "relative", overflow: "hidden" }}>
-      {numericKeys.length > 1 && activeKey !== "burden_rate_percent" && (
-        <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+    
+    {activeKey && numericKeys.length > 1 && activeKey !== "burden_rate_percent" && (
+      <div className="map-overlay-top-left">
+        <div className="key-toggle-group">
           {numericKeys.map((key) => (
             <button
               key={key}
               onClick={() => setActiveKey(key)}
               disabled={key === activeKey}
-              style={{
-                padding: "6px 10px",
-                borderRadius: "5px",
-                border: "1px solid #ccc",
-                background: key === activeKey ? "#007cbf" : "#f0f0f0",
-                color: key === activeKey ? "#fff" : "#000",
-                cursor: "pointer"
-              }}
+              className={`key-toggle-button ${key === activeKey ? "active" : ""}`}
             >
               {key === "pct_vacant"
                 ? "Vacant %"
@@ -186,276 +190,198 @@ function MapView({ data, valueKey }) {
             </button>
           ))}
         </div>
-      )}
 
-      {data.length > 0 && activeKey !== "burden_rate_percent" && (
-        <div style={{ marginBottom: "1rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-            {activeKey && activeKey.includes("poverty") && activeKey !== "poverty_rate_percent" && (
-              <>
-                <div>
-                  <label style={{ fontSize: "13px", display: "block" }}>Sex</label>
-                  <select
-                    value={sexFilter}
-                    onChange={(e) => setSexFilter(e.target.value)}
-                    style={{ padding: "4px 6px", borderRadius: "4px", fontSize: "13px" }}
-                  >
-                    <option value="All">All</option>
-                    {[...new Set(data.map(row => row.sex).filter(Boolean))].map(v => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: "13px", display: "block" }}>Age Group</label>
-                  <select
-                    value={ageGroupFilter}
-                    onChange={(e) => setAgeGroupFilter(e.target.value)}
-                    style={{ padding: "4px 6px", borderRadius: "4px", fontSize: "13px" }}
-                  >
-                    <option value="All">All</option>
-                    {[...new Set(data.map(row => row.age_group).filter(Boolean))].map(v => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-
-
-            {activeKey && activeKey.includes("vacancy") && activeKey !== "vacancy_rate_percent" && (
-              <div>
-                <label style={{ fontSize: "13px", display: "block" }}>Vacancy Type</label>
-                <select
-                  value={vacancyTypeFilter}
-                  onChange={(e) => setVacancyTypeFilter(e.target.value)}
-                  style={{ padding: "4px 6px", borderRadius: "4px", fontSize: "13px" }}
-                >
-                  <option value="All">All</option>
-                  {[...new Set(data.map(row => row.vacancy_type).filter(Boolean))].map(v => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-
-            {activeKey && activeKey.includes("structure") && (
-            <div>
-                <label style={{ fontSize: "13px", display: "block" }}>Structure Type</label>
-                <select
-                value={structureTypeFilter}
-                onChange={(e) => setStructureTypeFilter(e.target.value)}
-                style={{ padding: "4px 6px", borderRadius: "4px", fontSize: "13px" }}
-                >
-                <option value="All">All</option>
-                {[...new Set(data.map(row => row.structure_type).filter(Boolean))].map(v => (
-                    <option key={v} value={v}>{v}</option>
-                ))}
-                </select>
-            </div>
-            )}
-
-            {activeKey && activeKey.includes("bedroom") && (
-            <div>
-                <label style={{ fontSize: "13px", display: "block" }}>Bedroom Type</label>
-                <select
-                value={bedroomTypeFilter}
-                onChange={(e) => setBedroomTypeFilter(e.target.value)}
-                style={{ padding: "4px 6px", borderRadius: "4px", fontSize: "13px" }}
-                >
-                <option value="All">All</option>
-                {[...new Set(data.map(row => row.bedroom_type).filter(Boolean))].map(v => (
-                    <option key={v} value={v}>{v}</option>
-                ))}
-                </select>
-            </div>
-            )}
+        <div className="map-filters">
+          {activeKey.includes("poverty") && activeKey !== "poverty_rate_percent" && (
+            <>
+              <div className="filter-group">...Sex...</div>
+              <div className="filter-group">...Age Group...</div>
+            </>
+          )}
+          {activeKey.includes("vacancy") && activeKey !== "vacancy_rate_percent" && (
+            <div className="filter-group">...Vacancy Type...</div>
+          )}
+          {activeKey.includes("bedroom") && (
+            <div className="filter-group">...Bedroom Type...</div>
+          )}
         </div>
-      )}
+      </div>
+    )}
 
-      <button
-        onClick={() => setDarkMode(prev => !prev)}
-        style={{
-          position: "absolute",
-          top: "65px",
-          right: "10px",
-          zIndex: 1000,
-          padding: "6px 10px",
-          borderRadius: "5px",
-          border: "1px solid #ccc",
-          backgroundColor: darkMode ? "#333" : "#f0f0f0",
-          color: darkMode ? "#fff" : "#000",
-          cursor: "pointer"
-        }}
-      >
-        {darkMode ? "Light Mode" : "Dark Mode"}
-      </button>
+    {valueKey === "structure" && (
+      <div className="map-overlay-top-left">
+        <div className="map-filters">
+          <div className="filter-group">
+            <label style={{ fontWeight: "bold" }}>Structure Type</label>
+            <select value={structureTypeFilter} onChange={(e) => setStructureTypeFilter(e.target.value)}>
+              <option value="All">All</option>
+              {[...new Set(data.map(row => row.structure_type).filter(Boolean))].map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    )}
 
-      <button
-        onClick={() => {
-          setShow3D(prev => {
-            const next = !prev;
-            if (!next) {
-              setViewState(v => ({
-                ...v,
-                pitch: 0,
-                bearing: 0
-              }));
+    {valueKey === "bedroom" && (
+      <div className="map-overlay-top-left">
+        <div className="map-filters">
+          <div className="filter-group">
+            <label style={{ fontWeight: "bold" }}>Bedroom Type</label>
+            <select value={bedroomTypeFilter} onChange={(e) => setBedroomTypeFilter(e.target.value)}>
+              <option value="All">All</option>
+              {[...new Set(data.map(row => row.bedroom_type).filter(Boolean))].map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    )}
+
+      <div className="map-wrapper">
+        <Map
+          {...viewState}
+          onMove={evt => setViewState(evt.viewState)}
+          className="map-canvas"
+          mapStyle={mapStyleUrl}
+          mapboxAccessToken={MAPBOX_TOKEN}
+          interactiveLayerIds={["tract-fill"]}
+          dragRotate={true}
+          pitchWithRotate={true}
+          onMouseMove={(event) => {
+            const feature = event.features && event.features[0];
+            if (feature) {
+              setHoverInfo({
+                x: event.point.x,
+                y: event.point.y,
+                GEOID: feature.properties.GEOID,
+                value: feature.properties.value,
+              });
             } else {
-              setViewState(v => ({
-                ...v,
-                pitch: 50,
-                bearing: -20
-              }));
+              setHoverInfo(null);
             }
-            return next;
-          });
-        }}
-        style={{
-          position: "absolute",
-          top: "130px",
-          right: "10px",
-          zIndex: 1000,
-          padding: "6px 10px",
-          borderRadius: "5px",
-          border: "1px solid #ccc",
-          backgroundColor: show3D ? "#007cbf" : "#f0f0f0",
-          color: show3D ? "#fff" : "#000",
-          cursor: "pointer",
-          transform: "translateY(-100%)" // optionally push it above the scale box
-        }}
-      >
-        {show3D ? "Disable 3D" : "Enable 3D"}
-      </button>
-
-      {values.length > 0 && (
-        <div style={{
-          position: "absolute",
-          top: "140px",
-          right: "10px",
-          backgroundColor: "rgba(255, 255, 255, 0.95)",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "6px",
-          fontSize: "12px",
-          zIndex: 1000,
-          maxHeight: "80vh",
-          overflowY: "auto"
-        }}>
-          <div style={{ fontWeight: "bold", marginBottom: "6px" }}>Color Scale</div>
-          {colorScale.map((step, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
-              <div style={{
-                width: "14px",
-                height: "14px",
-                backgroundColor: step.color,
-                border: "1px solid #ccc",
-                marginRight: "6px"
-              }} />
-              <span>{step.label}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      
-
-
-
-      <Map
-        {...viewState}
-        onMove={evt => setViewState(evt.viewState)}
-        style={{ width: "100%", height: "100%" }}
-        mapStyle={mapStyleUrl}
-        mapboxAccessToken={MAPBOX_TOKEN}
-        interactiveLayerIds={["tract-fill"]}
-        dragRotate={true}
-        pitchWithRotate={true}
-        onMouseMove={(event) => {
-          const feature = event.features && event.features[0];
-          if (feature) {
-            setHoverInfo({
-              x: event.point.x,
-              y: event.point.y,
-              GEOID: feature.properties.GEOID,
-              value: feature.properties.value,
-            });
-          } else {
-            setHoverInfo(null);
-          }
-        }}
-        onMouseLeave={() => setHoverInfo(null)}
-      >
-        {styledGeojson && (
-          <Source id="tracts" type="geojson" data={styledGeojson}>
-            <Layer
-              id="tract-fill"
-              type="fill"
-              paint={{
-                "fill-color": ["get", "fill"],
-                "fill-opacity": [
-                  "case",
-                  ["==", ["get", "value"], null],
-                  unselectedOpacity,
-                  selectedOpacity
-                ],
-              }}
-            />
-            <Layer
-              id="tract-outline"
-              type="line"
-              paint={{
-                "line-color": "#888",
-                "line-width": 0.2,
-              }}
-            />
-            {show3D && (
+          }}
+          onMouseLeave={() => setHoverInfo(null)}
+        >
+          {styledGeojson && (
+            <Source id="tracts" type="geojson" data={styledGeojson}>
               <Layer
-                id="tract-3d"
-                type="fill-extrusion"
+                id="tract-fill"
+                type="fill"
                 paint={{
-                  "fill-extrusion-color": ["get", "fill"],
-                  "fill-extrusion-height": ["coalesce", ["get", "height"], 0],
-                  "fill-extrusion-base": 0,
-                  "fill-extrusion-opacity": 0.8
+                  "fill-color": ["get", "fill"],
+                  "fill-opacity": [
+                    "case",
+                    ["==", ["get", "value"], null],
+                    unselectedOpacity,
+                    selectedOpacity
+                  ],
                 }}
               />
-            )}
+              <Layer
+                id="tract-outline"
+                type="line"
+                paint={{
+                  "line-color": "#888",
+                  "line-width": 0.2,
+                }}
+              />
+              {show3D && (
+                <Layer
+                  id="tract-3d"
+                  type="fill-extrusion"
+                  paint={{
+                    "fill-extrusion-color": ["get", "fill"],
+                    "fill-extrusion-height": ["coalesce", ["get", "height"], 0],
+                    "fill-extrusion-base": 0,
+                    "fill-extrusion-opacity": 0.8
+                  }}
+                />
+              )}
 
+            </Source>
+          )}
+
+          <Source id="cwru-pillar" type="geojson" data={{
+            type: "FeatureCollection",
+            features: [{
+              type: "Feature",
+              geometry: {
+                type: "Polygon",
+                coordinates: [[
+                  [-81.6086, 41.5043],  // Bottom-left
+                  [-81.6082, 41.5043],  // Bottom-right
+                  [-81.6082, 41.5047],  // Top-right
+                  [-81.6086, 41.5047],  // Top-left
+                  [-81.6086, 41.5043]
+                ]]
+              },
+              properties: {
+                height: 20000,
+                color: "#007cbf"
+              }
+            }]
+          }}>
+            <Layer
+              id="cwru-pillar"
+              type="fill-extrusion"
+              paint={{
+                "fill-extrusion-color": ["get", "color"],
+                "fill-extrusion-height": ["get", "height"],
+                "fill-extrusion-base": 0,
+                "fill-extrusion-opacity": 0.95
+              }}
+            />
           </Source>
-        )}
+        </Map>
 
-        <Source id="cwru-pillar" type="geojson" data={{
-          type: "FeatureCollection",
-          features: [{
-            type: "Feature",
-            geometry: {
-              type: "Polygon",
-              coordinates: [[
-                [-81.6086, 41.5043],  // Bottom-left
-                [-81.6082, 41.5043],  // Bottom-right
-                [-81.6082, 41.5047],  // Top-right
-                [-81.6086, 41.5047],  // Top-left
-                [-81.6086, 41.5043]
-              ]]
-            },
-            properties: {
-              height: 20000,
-              color: "#007cbf"
-            }
-          }]
-        }}>
-          <Layer
-            id="cwru-pillar"
-            type="fill-extrusion"
-            paint={{
-              "fill-extrusion-color": ["get", "color"],
-              "fill-extrusion-height": ["get", "height"],
-              "fill-extrusion-base": 0,
-              "fill-extrusion-opacity": 0.95
+        <div className="map-buttons-container">
+          <button
+            onClick={() => setDarkMode(prev => !prev)}
+            className={`map-button ${darkMode ? "dark-mode-btn" : "light-mode-btn"}`}
+          >
+            {darkMode ? "Light Mode" : "Dark Mode"}
+          </button>
+
+          <button
+            onClick={() => {
+              setShow3D(prev => {
+                const next = !prev;
+                setViewState(v => ({
+                  ...v,
+                  pitch: next ? 50 : 0,
+                  bearing: next ? -20 : 0
+                }));
+                return next;
+              });
             }}
-          />
-        </Source>
-      </Map>
+            className={`map-button ${show3D ? "three-d-btn-active" : "three-d-btn-inactive"}`}
+          >
+            {show3D ? "Disable 3D" : "Enable 3D"}
+          </button>
+        </div>
+
+        {values.length > 0 && (
+          <div className="color-scale-box">
+            <div style={{ fontWeight: "bold", marginBottom: "6px" }}>Color Scale</div>
+            {colorScale.map((step, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                <div style={{
+                  width: "14px",
+                  height: "14px",
+                  backgroundColor: step.color,
+                  border: "1px solid #ccc",
+                  marginRight: "6px"
+                }} />
+                <span>{step.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      
 
       {hoverInfo && (
         <div
